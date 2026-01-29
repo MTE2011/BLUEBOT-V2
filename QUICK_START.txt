@@ -1,0 +1,62 @@
+╔════════════════════════════════════════════════════════════╗
+║              BLUEBOT-V2 QUICK START GUIDE                  ║
+╚════════════════════════════════════════════════════════════╝
+
+🚀 GET STARTED IN 3 STEPS:
+
+1️⃣  INSTALL DEPENDENCIES
+   Open terminal in this folder and run:
+   
+   pnpm install
+   (or: npm install)
+
+2️⃣  START THE BOT
+   Run:
+   
+   node index.js
+   (or: ./start.sh)
+
+3️⃣  PAIR WITH WHATSAPP
+   - Enter your phone number (with country code, no +)
+   - Wait for pairing code
+   - Open WhatsApp > Settings > Linked Devices
+   - Tap "Link a Device" > "Link with phone number"
+   - Enter the pairing code
+
+✅ DONE! Your bot is now connected!
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⚙️  CONFIGURATION (Optional)
+
+Edit blue.js and change:
+- ownerNumber: '27744332007'  (your number, no +)
+- ownerName: 'mudau_t'        (your name)
+- prefix: '.'                 (command prefix)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📱 FIRST COMMANDS TO TRY:
+
+.menu     - Show all commands
+.ping     - Check bot status
+.help     - Get help
+.botinfo  - Bot information
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📚 DOCUMENTATION:
+
+- README.md        - Full documentation
+- SETUP_GUIDE.md   - Detailed setup guide
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+👨‍💻 DEVELOPER:
+
+Name: mudau_t
+Contact: +27 74 433 2007
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+© 2025 BLUEBOT-V2 | Made with ❤️
