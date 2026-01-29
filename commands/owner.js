@@ -293,7 +293,16 @@ bluebot({
   fromMe: true,
   category: "owner",
 }, async (sock, m, config, args) => {
-  send(sock, m.key.remoteJid, "🔄 Checking for updates...", m);
+  const { exec } = require('child_process');
+  await send(sock, m.key.remoteJid, "🔄 *Updating BLUEBOT-V2...*\n\nPulling latest changes from GitHub...", m);
+  
+  exec('git pull origin main', (err, stdout, stderr) => {
+    if (err) return send(sock, m.key.remoteJid, `❌ *Update Failed:*\n${err.message}`, m);
+    if (stdout.includes('Already up to date.')) return send(sock, m.key.remoteJid, "✅ *Bot is already up to date!*", m);
+    
+    send(sock, m.key.remoteJid, `✅ *Update Successful!*\n\n*Changes:*\n${stdout}\n\nRestarting bot to apply changes...`, m);
+    setTimeout(() => process.exit(1), 3000);
+  });
 });
 
 // 26. Backup

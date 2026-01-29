@@ -35,23 +35,29 @@ async function startBot() {
     
     logger.info('Starting BLUEBOT-V2...');
     
-    // Get phone number from user
-    const phoneNumber = await question('📱 Enter your WhatsApp phone number (with country code, no +): ');
-    
-    if (!phoneNumber || phoneNumber.trim() === '') {
-        logger.error('No phone number provided. Exiting...');
-        rl.close();
-        process.exit(1);
+    // Check if session exists
+    const sessionPath = path.join(__dirname, 'session');
+    let phoneNumber;
+
+    if (!fs.existsSync(sessionPath) || fs.readdirSync(sessionPath).length === 0) {
+        // Get phone number from user if no session exists
+        phoneNumber = await question('📱 Enter your WhatsApp phone number (with country code, no +): ');
+        
+        if (!phoneNumber || phoneNumber.trim() === '') {
+            logger.error('No phone number provided. Exiting...');
+            rl.close();
+            process.exit(1);
+        }
+        phoneNumber = phoneNumber.trim().replace(/[^0-9]/g, "");
+        console.log('\n⏳ Getting your pairing code...\n');
     }
-    
-    console.log('\n⏳ Getting your pairing code...\n');
     
     // Close readline interface
     rl.close();
     
-    // Import and start the bot with the phone number
+    // Import and start the bot
     const { startBlueBot } = require('./blue.js');
-    await startBlueBot(phoneNumber.trim(), logger);
+    await startBlueBot(phoneNumber, logger);
 }
 
 // Handle process termination

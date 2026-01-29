@@ -4,7 +4,8 @@ const {
     useMultiFileAuthState,
     fetchLatestBaileysVersion,
     makeCacheableSignalKeyStore,
-    Browsers
+    Browsers,
+    delay
 } = require('@whiskeysockets/baileys');
 const { Boom } = require('@hapi/boom');
 const fs = require('fs');
@@ -12,7 +13,6 @@ const path = require('path');
 const P = require('pino');
 const config = require('./config');
 const { loadCommands, handleCommand } = require('./utils/handler');
-const { sendWelcomeMessage } = require('./utils/permissions');
 
 let sock;
 let welcomeMessageSent = false;
@@ -22,7 +22,7 @@ async function startBlueBot(phoneNumber, logger) {
         // Load commands first
         loadCommands();
 
-        const authDir = path.join(__dirname, 'session'); // Changed from auth_info_baileys to session for simplicity
+        const authDir = path.join(__dirname, 'session');
         if (!fs.existsSync(authDir)) {
             fs.mkdirSync(authDir, { recursive: true });
         }
@@ -32,13 +32,13 @@ async function startBlueBot(phoneNumber, logger) {
         
         sock = makeWASocket({
             version,
-            logger,
+            logger: P({ level: 'silent' }),
             printQRInTerminal: false,
             auth: {
                 creds: state.creds,
-                keys: makeCacheableSignalKeyStore(state.keys, logger)
+                keys: makeCacheableSignalKeyStore(state.keys, P({ level: 'silent' }))
             },
-            browser: Browsers.ubuntu('Chrome'),
+            browser: ["Ubuntu", "Chrome", "20.0.04"],
             generateHighQualityLinkPreview: true,
             syncFullHistory: false,
             markOnlineOnConnect: true
@@ -62,29 +62,29 @@ async function startBlueBot(phoneNumber, logger) {
             } else if (connection === 'open') {
                 console.log('\n✓ BLUEBOT-V2 CONNECTED SUCCESSFULLY!\n');
                 if (!welcomeMessageSent && config.WELCOME_MSG) {
-                    // Assuming sendWelcomeMessage is a function that sends the message to the owner
-                    // This is a placeholder for the actual welcome message logic
-                    // await sendWelcomeMessage(sock, config); 
+                    const ownerJid = config.OWNER_NUMBER + "@s.whatsapp.net";
+                    await sock.sendMessage(ownerJid, { 
+                        text: `🤖 *BLUEBOT-V2 CONNECTED*\n\nWelcome back, *${config.OWNER_NAME}*!\nYour bot is now online and ready to use.\n\nType \`${config.PREFIX}menu\` to see all commands.` 
+                    });
                     welcomeMessageSent = true;
                 }
             }
         });
 
-        if (!sock.authState.creds.registered) {
-            setTimeout(async () => {
-                try {
-                    const code = await sock.requestPairingCode(phoneNumber);
-                    console.log(`\n🔐 YOUR PAIRING CODE: ${code}\n`);
-                } catch (error) {
-                    logger.error('Failed to get pairing code:', error);
-                }
-            }, 3000);
+        if (!sock.authState.creds.registered && phoneNumber) {
+            await delay(3000);
+            try {
+                const code = await sock.requestPairingCode(phoneNumber);
+                console.log(`\n🔐 YOUR PAIRING CODE: ${code?.match(/.{1,4}/g)?.join("-") || code}\n`);
+            } catch (error) {
+                logger.error('Failed to get pairing code:', error);
+            }
         }
 
         sock.ev.on('messages.upsert', async ({ messages, type }) => {
             if (type !== 'notify') return;
             for (const m of messages) {
-                if (!m.message || m.key.fromMe) continue;
+                if (!m.message) continue;
                 
                 // Set m.body for easy access in handler
                 m.body = m.message.conversation || m.message.extendedTextMessage?.text || m.message.imageMessage?.caption || m.message.videoMessage?.caption || '';
