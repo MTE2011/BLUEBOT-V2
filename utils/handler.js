@@ -2,27 +2,46 @@ const fs = require('fs');
 const path = require('path');
 const config = require('../config');
 
-const commands = new Map();
+const commands = [];
+
+/**
+ * Register a new command
+ * @param {Object} info Command information
+ * @param {Function} func Command execution function
+ */
+function bluebot(info, func) {
+    const command = {
+        cmd: info.cmd,
+        alias: info.alias || [],
+        desc: info.desc || '',
+        fromMe: info.fromMe || false,
+        category: info.category || info.Catigory || 'general',
+        execute: func
+    };
+    commands.push(command);
+}
 
 // Load all commands from the commands directory
 function loadCommands() {
     const commandsPath = path.join(__dirname, '../commands');
     const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
 
+    // Clear existing commands to avoid duplicates on reload
+    commands.length = 0;
+
+    // Make bluebot globally available for command files
+    global.bluebot = bluebot;
+
     for (const file of commandFiles) {
         try {
-            const category = require(path.join(commandsPath, file));
-            Object.keys(category).forEach(cmdName => {
-                commands.set(cmdName.toLowerCase(), {
-                    execute: category[cmdName],
-                    category: file.replace('.js', '')
-                });
-            });
+            // Clear cache to allow reloading
+            delete require.cache[require.resolve(path.join(commandsPath, file))];
+            require(path.join(commandsPath, file));
         } catch (error) {
             console.error(`Error loading command file ${file}:`, error);
         }
     }
-    console.log(`✓ Loaded ${commands.size} commands from ${commandFiles.length} files.`);
+    console.log(`✓ Loaded ${commands.length} commands from ${commandFiles.length} files.`);
 }
 
 async function handleCommand(sock, msg, logger) {
@@ -42,7 +61,8 @@ async function handleCommand(sock, msg, logger) {
 
     const args = text.slice(config.PREFIX.length).trim().split(/ +/);
     const commandName = args.shift().toLowerCase();
-    const command = commands.get(commandName);
+    
+    const command = commands.find(c => c.cmd === commandName || c.alias.includes(commandName));
 
     if (!command) return;
 
@@ -52,12 +72,8 @@ async function handleCommand(sock, msg, logger) {
     const isOwner = senderNumber === config.OWNER_NUMBER || config.MODS.includes(senderNumber);
 
     // Permission checks
-    if (command.category === 'owner' && !isOwner) {
+    if (command.fromMe && !isOwner) {
         return await sock.sendMessage(sender, { text: '❌ This command is for the bot owner only.' });
-    }
-
-    if (command.category === 'group' && !isGroup) {
-        return await sock.sendMessage(sender, { text: '❌ This command can only be used in groups.' });
     }
 
     try {
