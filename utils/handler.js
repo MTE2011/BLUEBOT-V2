@@ -14,7 +14,7 @@ function bluebot(info, func) {
         cmd: info.cmd,
         alias: info.alias || [],
         desc: info.desc || '',
-        fromMe: info.fromMe || false,
+        fromMe: info.fromMe || false, // Default to false as requested
         category: info.category || info.Catigory || 'general',
         execute: func
     };
@@ -44,19 +44,9 @@ function loadCommands() {
     console.log(`✓ Loaded ${commands.length} commands from ${commandFiles.length} files.`);
 }
 
-async function handleCommand(sock, msg, logger) {
-    const messageType = Object.keys(msg.message)[0];
-    const messageContent = msg.message[messageType];
+async function handleCommand(conn, m, logger) {
+    const text = m.body || '';
     
-    let text = '';
-    if (messageType === 'conversation') {
-        text = messageContent;
-    } else if (messageType === 'extendedTextMessage') {
-        text = messageContent.text;
-    } else if (messageType === 'imageMessage' || messageType === 'videoMessage') {
-        text = messageContent.caption || '';
-    }
-
     if (!text || !text.startsWith(config.PREFIX)) return;
 
     const args = text.slice(config.PREFIX.length).trim().split(/ +/);
@@ -66,21 +56,22 @@ async function handleCommand(sock, msg, logger) {
 
     if (!command) return;
 
-    const sender = msg.key.remoteJid;
+    const sender = m.key.remoteJid;
     const isGroup = sender.endsWith('@g.us');
-    const senderNumber = (msg.key.participant || sender).replace('@s.whatsapp.net', '');
+    const senderNumber = (m.key.participant || sender).replace('@s.whatsapp.net', '');
     const isOwner = senderNumber === config.OWNER_NUMBER || config.MODS.includes(senderNumber);
 
     // Permission checks
     if (command.fromMe && !isOwner) {
-        return await sock.sendMessage(sender, { text: '❌ This command is for the bot owner only.' });
+        return await conn.sendMessage(sender, { text: '❌ This command is for the bot owner only.' });
     }
 
     try {
-        await command.execute(sock, msg, args, config);
+        // Pass the necessary context to the command function
+        await command.execute(conn, m, config, args);
     } catch (error) {
         logger.error(`Error executing command ${commandName}:`, error);
-        await sock.sendMessage(sender, { text: `❌ Error: ${error.message}` });
+        await conn.sendMessage(sender, { text: `❌ Error: ${error.message}` });
     }
 }
 

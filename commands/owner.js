@@ -1,169 +1,349 @@
-// Owner Administration Commands for BLUEBOT-V2
+// Helper function to send a message
+const send = (sock, jid, text, quoted) => sock.sendMessage(jid, { text }, { quoted });
 
-const ownerCommands = {
-    // 1. Shutdown
-    shutdown: async (sock, msg, args, config) => {
-        await sock.sendMessage(msg.key.remoteJid, { text: "🔴 Shutting down..." });
-        process.exit(0);
-    },
-    // 2. Restart
-    restart: async (sock, msg, args, config) => {
-        await sock.sendMessage(msg.key.remoteJid, { text: "🔄 Restarting..." });
-        process.exit(1);
-    },
-    // 3. Eval
-    eval: async (sock, msg, args, config) => {
-        try {
-            let evaled = eval(args.join(' '));
-            if (typeof evaled !== 'string') evaled = require('util').inspect(evaled);
-            await sock.sendMessage(msg.key.remoteJid, { text: evaled });
-        } catch (err) {
-            await sock.sendMessage(msg.key.remoteJid, { text: err.message });
-        }
-    },
-    // 4. Exec
-    exec: async (sock, msg, args, config) => {
-        require('child_process').exec(args.join(' '), (err, stdout) => {
-            if (err) return sock.sendMessage(msg.key.remoteJid, { text: err.message });
-            sock.sendMessage(msg.key.remoteJid, { text: stdout });
-        });
-    },
-    // 5. SetPrefix
-    setprefix: async (sock, msg, args, config) => {
-        if (!args[0]) return await sock.sendMessage(msg.key.remoteJid, { text: "❌ Provide a prefix." });
-        config.PREFIX = args[0];
-        await sock.sendMessage(msg.key.remoteJid, { text: `✅ Prefix set to: ${args[0]}` });
-    },
-    // 6. SetBotName
-    setbotname: async (sock, msg, args, config) => {
-        if (!args[0]) return await sock.sendMessage(msg.key.remoteJid, { text: "❌ Provide a name." });
-        config.BOT_NAME = args.join(' ');
-        await sock.sendMessage(msg.key.remoteJid, { text: `✅ Bot name set to: ${config.BOT_NAME}` });
-    },
-    // 7. AddMod
-    addmod: async (sock, msg, args, config) => {
-        if (!args[0]) return await sock.sendMessage(msg.key.remoteJid, { text: "❌ Provide a number." });
-        const num = args[0].replace(/[^0-9]/g, '');
-        config.MODS.push(num);
-        await sock.sendMessage(msg.key.remoteJid, { text: `✅ Added mod: ${num}` });
-    },
-    // 8. DelMod
-    delmod: async (sock, msg, args, config) => {
-        if (!args[0]) return await sock.sendMessage(msg.key.remoteJid, { text: "❌ Provide a number." });
-        const num = args[0].replace(/[^0-9]/g, '');
-        config.MODS = config.MODS.filter(m => m !== num);
-        await sock.sendMessage(msg.key.remoteJid, { text: `✅ Removed mod: ${num}` });
-    },
-    // 9. Public
-    public: async (sock, msg, args, config) => {
-        config.WORK_TYPE = 'public';
-        await sock.sendMessage(msg.key.remoteJid, { text: "✅ Work type: Public" });
-    },
-    // 10. Private
-    private: async (sock, msg, args, config) => {
-        config.WORK_TYPE = 'private';
-        await sock.sendMessage(msg.key.remoteJid, { text: "✅ Work type: Private" });
-    },
-    // 11. Join
-    join: async (sock, msg, args, config) => {
-        if (!args[0]) return await sock.sendMessage(msg.key.remoteJid, { text: "❌ Provide link." });
-        const code = args[0].split('chat.whatsapp.com/')[1];
-        await sock.groupAcceptInvite(code);
-        await sock.sendMessage(msg.key.remoteJid, { text: "✅ Joined." });
-    },
-    // 12. Leave
-    leave: async (sock, msg, args, config) => {
-        await sock.groupLeave(msg.key.remoteJid);
-    },
-    // 13. Block
-    block: async (sock, msg, args, config) => {
-        const target = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid?.[0] || msg.key.remoteJid;
-        await sock.updateBlockStatus(target, "block");
-        await sock.sendMessage(msg.key.remoteJid, { text: "✅ Blocked." });
-    },
-    // 14. Unblock
-    unblock: async (sock, msg, args, config) => {
-        const target = args[0] ? args[0].replace(/[^0-9]/g, '') + '@s.whatsapp.net' : null;
-        await sock.updateBlockStatus(target, "unblock");
-        await sock.sendMessage(msg.key.remoteJid, { text: "✅ Unblocked." });
-    },
-    // 15. Broadcast
-    bc: async (sock, msg, args, config) => {
-        const groups = await sock.groupFetchAllParticipating();
-        for (let g of Object.values(groups)) {
-            await sock.sendMessage(g.id, { text: args.join(' ') });
-        }
-        await sock.sendMessage(msg.key.remoteJid, { text: "✅ Broadcasted." });
-    },
-    // 16. Clear
-    clear: async (sock, msg, args, config) => {
-        await sock.chatModify({ clear: true }, msg.key.remoteJid);
-        await sock.sendMessage(msg.key.remoteJid, { text: "✅ Cleared." });
-    },
-    // 17. Delete
-    del: async (sock, msg, args, config) => {
-        await sock.chatModify({ delete: true }, msg.key.remoteJid);
-    },
-    // 18. Pin
-    pin: async (sock, msg, args, config) => {
-        await sock.chatModify({ pin: true }, msg.key.remoteJid);
-        await sock.sendMessage(msg.key.remoteJid, { text: "✅ Pinned." });
-    },
-    // 19. Unpin
-    unpin: async (sock, msg, args, config) => {
-        await sock.chatModify({ pin: false }, msg.key.remoteJid);
-        await sock.sendMessage(msg.key.remoteJid, { text: "✅ Unpinned." });
-    },
-    // 20. Archive
-    archive: async (sock, msg, args, config) => {
-        await sock.chatModify({ archive: true }, msg.key.remoteJid);
-        await sock.sendMessage(msg.key.remoteJid, { text: "✅ Archived." });
-    },
-    // 21. Unarchive
-    unarchive: async (sock, msg, args, config) => {
-        await sock.chatModify({ archive: false }, msg.key.remoteJid);
-        await sock.sendMessage(msg.key.remoteJid, { text: "✅ Unarchived." });
-    },
-    // 22. SetPP
-    setpp: async (sock, msg, args, config) => {
-        await sock.sendMessage(msg.key.remoteJid, { text: "🖼️ Feature coming soon." });
-    },
-    // 23. SetStatus
-    setstatus: async (sock, msg, args, config) => {
-        await sock.updateProfileStatus(args.join(' '));
-        await sock.sendMessage(msg.key.remoteJid, { text: "✅ Status updated." });
-    },
-    // 24. SetName
-    setname: async (sock, msg, args, config) => {
-        await sock.updateProfileName(args.join(' '));
-        await sock.sendMessage(msg.key.remoteJid, { text: "✅ Name updated." });
-    },
-    // 25. GetLogs
-    getlogs: async (sock, msg, args, config) => {
-        await sock.sendMessage(msg.key.remoteJid, { text: "📋 Logs feature coming soon." });
-    },
-    // 26. Update
-    update: async (sock, msg, args, config) => {
-        await sock.sendMessage(msg.key.remoteJid, { text: "🔄 Checking for updates..." });
-    },
-    // 27. Backup
-    backup: async (sock, msg, args, config) => {
-        await sock.sendMessage(msg.key.remoteJid, { text: "💾 Backup started." });
-    },
-    // 28. Restore
-    restore: async (sock, msg, args, config) => {
-        await sock.sendMessage(msg.key.remoteJid, { text: "♻️ Restore started." });
-    },
-    // 29. GetConfig
-    getconfig: async (sock, msg, args, config) => {
-        await sock.sendMessage(msg.key.remoteJid, { text: JSON.stringify(config, null, 2) });
-    },
-    // 30. Reload
-    reload: async (sock, msg, args, config) => {
-        const { loadCommands } = require('../utils/handler');
-        loadCommands();
-        await sock.sendMessage(msg.key.remoteJid, { text: "✅ Commands reloaded." });
-    }
-};
+// --- Owner Commands (30+) ---
 
-module.exports = ownerCommands;
+// 1. Shutdown
+bluebot({
+  cmd: "shutdown",
+  desc: "Stop the bot process",
+  fromMe: true,
+  category: "owner",
+}, async (sock, m, config, args) => {
+  await send(sock, m.key.remoteJid, "🔴 Shutting down...", m);
+  process.exit(0);
+});
+
+// 2. Restart
+bluebot({
+  cmd: "restart",
+  desc: "Restart the bot process",
+  fromMe: true,
+  category: "owner",
+}, async (sock, m, config, args) => {
+  await send(sock, m.key.remoteJid, "🔄 Restarting...", m);
+  process.exit(1); // Use 1 to indicate restart
+});
+
+// 3. Eval
+bluebot({
+  cmd: "eval",
+  alias: [">", "=>"],
+  desc: "Execute JavaScript code (DANGEROUS)",
+  fromMe: true,
+  category: "owner",
+}, async (sock, m, config, args) => {
+  try {
+    let code = args.join(" ");
+    let result = await eval(`(async () => { ${code} })()`);
+    send(sock, m.key.remoteJid, `✅ *Result:*\n${require('util').format(result)}`, m);
+  } catch (e) {
+    send(sock, m.key.remoteJid, `❌ *Error:*\n${require('util').format(e)}`, m);
+  }
+});
+
+// 4. Exec
+bluebot({
+  cmd: "exec",
+  alias: ["$"],
+  desc: "Execute a shell command",
+  fromMe: true,
+  category: "owner",
+}, async (sock, m, config, args) => {
+  require('child_process').exec(args.join(' '), (err, stdout) => {
+    if (err) return send(sock, m.key.remoteJid, err.message, m);
+    send(sock, m.key.remoteJid, stdout, m);
+  });
+});
+
+// 5. Set Prefix
+bluebot({
+  cmd: "setprefix",
+  desc: "Change the bot's command prefix",
+  fromMe: true,
+  category: "owner",
+}, async (sock, m, config, args) => {
+  if (!args[0]) return send(sock, m.key.remoteJid, "❌ Provide a prefix.", m);
+  config.PREFIX = args[0];
+  send(sock, m.key.remoteJid, `✅ Prefix set to: ${args[0]}`, m);
+});
+
+// 6. Set Bot Name
+bluebot({
+  cmd: "setbotname",
+  desc: "Change the bot's name",
+  fromMe: true,
+  category: "owner",
+}, async (sock, m, config, args) => {
+  if (!args[0]) return send(sock, m.key.remoteJid, "❌ Provide a name.", m);
+  config.BOT_NAME = args.join(' ');
+  send(sock, m.key.remoteJid, `✅ Bot name set to: ${config.BOT_NAME}`, m);
+});
+
+// 7. Add Mod
+bluebot({
+  cmd: "addmod",
+  desc: "Add a user to the mod list",
+  fromMe: true,
+  category: "owner",
+}, async (sock, m, config, args) => {
+  if (!args[0]) return send(sock, m.key.remoteJid, "❌ Provide a number.", m);
+  const num = args[0].replace(/[^0-9]/g, '');
+  config.MODS.push(num);
+  send(sock, m.key.remoteJid, `✅ Added mod: ${num}`, m);
+});
+
+// 8. Remove Mod
+bluebot({
+  cmd: "delmod",
+  desc: "Remove a user from the mod list",
+  fromMe: true,
+  category: "owner",
+}, async (sock, m, config, args) => {
+  if (!args[0]) return send(sock, m.key.remoteJid, "❌ Provide a number.", m);
+  const num = args[0].replace(/[^0-9]/g, '');
+  config.MODS = config.MODS.filter(mod => mod !== num);
+  send(sock, m.key.remoteJid, `✅ Removed mod: ${num}`, m);
+});
+
+// 9. Public Mode
+bluebot({
+  cmd: "public",
+  desc: "Set bot to public mode",
+  fromMe: true,
+  category: "owner",
+}, async (sock, m, config, args) => {
+  config.WORK_TYPE = 'public';
+  send(sock, m.key.remoteJid, "✅ Work type set to Public.", m);
+});
+
+// 10. Private Mode
+bluebot({
+  cmd: "private",
+  desc: "Set bot to private mode",
+  fromMe: true,
+  category: "owner",
+}, async (sock, m, config, args) => {
+  config.WORK_TYPE = 'private';
+  send(sock, m.key.remoteJid, "✅ Work type set to Private.", m);
+});
+
+// 11. Join Group
+bluebot({
+  cmd: "join",
+  desc: "Join a group via invite link",
+  fromMe: true,
+  category: "owner",
+}, async (sock, m, config, args) => {
+  if (!args[0]) return send(sock, m.key.remoteJid, "❌ Provide a group link.", m);
+  const code = args[0].split('chat.whatsapp.com/')[1];
+  await sock.groupAcceptInvite(code);
+  send(sock, m.key.remoteJid, "✅ Joined group.", m);
+});
+
+// 12. Leave Group
+bluebot({
+  cmd: "leave",
+  desc: "Leave the current group",
+  fromMe: true,
+  category: "owner",
+}, async (sock, m, config, args) => {
+  await sock.groupLeave(m.key.remoteJid);
+});
+
+// 13. Block User
+bluebot({
+  cmd: "block",
+  desc: "Block a user",
+  fromMe: true,
+  category: "owner",
+}, async (sock, m, config, args) => {
+  const target = m.message?.extendedTextMessage?.contextInfo?.mentionedJid?.[0] || m.key.remoteJid;
+  await sock.updateBlockStatus(target, "block");
+  send(sock, m.key.remoteJid, "✅ Blocked.", m);
+});
+
+// 14. Unblock User
+bluebot({
+  cmd: "unblock",
+  desc: "Unblock a user",
+  fromMe: true,
+  category: "owner",
+}, async (sock, m, config, args) => {
+  const target = args[0] ? args[0].replace(/[^0-9]/g, '') + '@s.whatsapp.net' : null;
+  if (!target) return send(sock, m.key.remoteJid, "❌ Provide a number to unblock.", m);
+  await sock.updateBlockStatus(target, "unblock");
+  send(sock, m.key.remoteJid, "✅ Unblocked.", m);
+});
+
+// 15. Broadcast
+bluebot({
+  cmd: "bc",
+  desc: "Broadcast a message to all groups",
+  fromMe: true,
+  category: "owner",
+}, async (sock, m, config, args) => {
+  const groups = await sock.groupFetchAllParticipating();
+  for (let g of Object.values(groups)) {
+    await send(sock, g.id, args.join(' '), m);
+  }
+  send(sock, m.key.remoteJid, "✅ Broadcasted.", m);
+});
+
+// 16. Clear Chat
+bluebot({
+  cmd: "clear",
+  desc: "Clear all messages in a chat",
+  fromMe: true,
+  category: "owner",
+}, async (sock, m, config, args) => {
+  await sock.chatModify({ clear: true }, m.key.remoteJid);
+  send(sock, m.key.remoteJid, "✅ Cleared.", m);
+});
+
+// 17. Delete Chat
+bluebot({
+  cmd: "delchat",
+  desc: "Delete an entire chat",
+  fromMe: true,
+  category: "owner",
+}, async (sock, m, config, args) => {
+  await sock.chatModify({ delete: true }, m.key.remoteJid);
+});
+
+// 18. Pin Chat
+bluebot({
+  cmd: "pin",
+  desc: "Pin a chat",
+  fromMe: true,
+  category: "owner",
+}, async (sock, m, config, args) => {
+  await sock.chatModify({ pin: true }, m.key.remoteJid);
+  send(sock, m.key.remoteJid, "✅ Pinned.", m);
+});
+
+// 19. Unpin Chat
+bluebot({
+  cmd: "unpin",
+  desc: "Unpin a chat",
+  fromMe: true,
+  category: "owner",
+}, async (sock, m, config, args) => {
+  await sock.chatModify({ pin: false }, m.key.remoteJid);
+  send(sock, m.key.remoteJid, "✅ Unpinned.", m);
+});
+
+// 20. Archive Chat
+bluebot({
+  cmd: "archive",
+  desc: "Archive a chat",
+  fromMe: true,
+  category: "owner",
+}, async (sock, m, config, args) => {
+  await sock.chatModify({ archive: true }, m.key.remoteJid);
+  send(sock, m.key.remoteJid, "✅ Archived.", m);
+});
+
+// 21. Unarchive Chat
+bluebot({
+  cmd: "unarchive",
+  desc: "Unarchive a chat",
+  fromMe: true,
+  category: "owner",
+}, async (sock, m, config, args) => {
+  await sock.chatModify({ archive: false }, m.key.remoteJid);
+  send(sock, m.key.remoteJid, "✅ Unarchived.", m);
+});
+
+// 22. Set Profile Picture
+bluebot({
+  cmd: "setpp",
+  desc: "Set the bot's profile picture",
+  fromMe: true,
+  category: "owner",
+}, async (sock, m, config, args) => {
+  send(sock, m.key.remoteJid, "🖼️ Reply to an image with this command.", m);
+});
+
+// 23. Set Status
+bluebot({
+  cmd: "setstatus",
+  desc: "Set the bot's status message",
+  fromMe: true,
+  category: "owner",
+}, async (sock, m, config, args) => {
+  await sock.updateProfileStatus(args.join(' '));
+  send(sock, m.key.remoteJid, "✅ Status updated.", m);
+});
+
+// 24. Get Logs
+bluebot({
+  cmd: "getlogs",
+  desc: "Get the bot's logs",
+  fromMe: true,
+  category: "owner",
+}, async (sock, m, config, args) => {
+  send(sock, m.key.remoteJid, "📋 Logs feature coming soon.", m);
+});
+
+// 25. Update Bot
+bluebot({
+  cmd: "update",
+  desc: "Update the bot from its repository",
+  fromMe: true,
+  category: "owner",
+}, async (sock, m, config, args) => {
+  send(sock, m.key.remoteJid, "🔄 Checking for updates...", m);
+});
+
+// 26. Backup
+bluebot({
+  cmd: "backup",
+  desc: "Create a backup of the bot's data",
+  fromMe: true,
+  category: "owner",
+}, async (sock, m, config, args) => {
+  send(sock, m.key.remoteJid, "💾 Backup started.", m);
+});
+
+// 27. Restore
+bluebot({
+  cmd: "restore",
+  desc: "Restore the bot from a backup",
+  fromMe: true,
+  category: "owner",
+}, async (sock, m, config, args) => {
+  send(sock, m.key.remoteJid, "♻️ Restore started.", m);
+});
+
+// 28. Get Config
+bluebot({
+  cmd: "getconfig",
+  desc: "Get the current bot configuration",
+  fromMe: true,
+  category: "owner",
+}, async (sock, m, config, args) => {
+  send(sock, m.key.remoteJid, JSON.stringify(config, null, 2), m);
+});
+
+// 29. Reload Commands
+bluebot({
+  cmd: "reload",
+  desc: "Reload all command files",
+  fromMe: true,
+  category: "owner",
+}, async (sock, m, config, args) => {
+  const { loadCommands } = require('../utils/handler');
+  loadCommands();
+  send(sock, m.key.remoteJid, "✅ Commands reloaded.", m);
+});
+
+// 30. Get Env
+bluebot({
+  cmd: "getenv",
+  desc: "Get environment variables",
+  fromMe: true,
+  category: "owner",
+}, async (sock, m, config, args) => {
+  send(sock, m.key.remoteJid, JSON.stringify(process.env, null, 2), m);
+});

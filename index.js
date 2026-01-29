@@ -3,13 +3,6 @@ const path = require('path');
 const pino = require('pino');
 const readline = require('readline');
 
-// Check if blue.js exists
-if (!fs.existsSync(path.join(__dirname, 'blue.js'))) {
-    console.error('❌ ERROR: blue.js is missing from the root directory!');
-    console.error('The bot cannot start without blue.js. Please ensure it exists.');
-    process.exit(1);
-}
-
 // Logger setup
 const logger = pino({ 
     level: 'info',
@@ -41,15 +34,6 @@ async function startBot() {
     console.log('╚════════════════════════════════════════════════════════════╝\n');
     
     logger.info('Starting BLUEBOT-V2...');
-    logger.info('Checking required files...');
-    
-    // Verify blue.js exists (already checked above, but log it)
-    logger.info('✓ index.js found');
-    logger.info('✓ blue.js found');
-    
-    console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('           WHATSAPP PAIRING CODE AUTHENTICATION');
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
     
     // Get phone number from user
     const phoneNumber = await question('📱 Enter your WhatsApp phone number (with country code, no +): ');
@@ -75,14 +59,6 @@ process.on('SIGINT', () => {
     logger.info('Bot shutting down...');
     rl.close();
     process.exit(0);
-});
-
-process.on('uncaughtException', (err) => {
-    logger.error('Uncaught Exception:', err);
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-    logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
 
 // Start the bot
